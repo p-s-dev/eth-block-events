@@ -14,6 +14,7 @@ import java.math.BigInteger;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 import static org.mockito.Mockito.*;
 
@@ -30,13 +31,17 @@ class EthereumEventListenerServiceTest {
     
     @Mock
     private EthereumProperties ethereumProperties;
+    
+    @Mock
+    private GenericContractEventListener mockEventListener;
 
     private EthereumEventListenerService service;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        service = new EthereumEventListenerService(web3j, web3jWebsocket, eventBus, ethereumProperties);
+        List<GenericContractEventListener> eventListeners = Collections.singletonList(mockEventListener);
+        service = new EthereumEventListenerService(web3j, web3jWebsocket, eventBus, ethereumProperties, eventListeners);
     }
 
     @Test
