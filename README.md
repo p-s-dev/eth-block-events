@@ -189,6 +189,24 @@ public class MyEventHandler {
     }
     
     @Subscribe
+    public void handleUniswapSwap(UniswapSwapEvent event) {
+        // Handle Uniswap V4 swap events
+        logger.info("Uniswap Swap in pool {}: {} <-> {} by {}", 
+                   bytesToHex(event.poolId()), 
+                   event.amount0(), event.amount1(), 
+                   event.sender());
+    }
+    
+    @Subscribe
+    public void handleUniswapInitialize(UniswapInitializeEvent event) {
+        // Handle new Uniswap pool initialization
+        logger.info("New Uniswap pool {} initialized: {} <-> {} (fee: {})", 
+                   bytesToHex(event.poolId()), 
+                   event.currency0(), event.currency1(), 
+                   event.fee());
+    }
+    
+    @Subscribe
     public void handleBlockEvent(BlockEvent event) {
         // Handle new block events (requires WebSocket configuration)
         logger.info("New block: {} with {} transactions (miner: {})", 
@@ -201,11 +219,10 @@ public class MyEventHandler {
 
 #### EthereumEvent
 Generic event containing:
-- Event name
-- Contract address
-- Transaction hash
-- Block number and timestamp
+- Event name and contract address
+- Transaction hash and block information
 - Raw topics and data
+- Timestamp and log index
 
 #### ERC20TransferEvent
 Specific event for ERC20 transfers containing:
@@ -214,7 +231,28 @@ Specific event for ERC20 transfers containing:
 - Contract address
 - Transaction details
 
-#### BlockEvent (NEW!)
+#### UniswapSwapEvent (NEW!)
+Uniswap V4 swap events containing:
+- Pool ID and sender address
+- Token amounts (amount0, amount1)
+- Price and liquidity data
+- Transaction details
+
+#### UniswapInitializeEvent (NEW!)
+Uniswap V4 pool initialization events containing:
+- Pool ID and currency pair
+- Fee tier and tick spacing
+- Hooks contract address
+- Transaction details
+
+#### UniswapModifyLiquidityEvent (NEW!)
+Uniswap V4 liquidity modification events containing:
+- Pool ID and sender address
+- Tick range (tickLower, tickUpper)
+- Liquidity delta
+- Transaction details
+
+#### BlockEvent
 Real-time block events (requires WebSocket configuration) containing:
 - Block number and hash
 - Parent hash
@@ -225,6 +263,37 @@ Real-time block events (requires WebSocket configuration) containing:
 - Transaction count
 
 ## Adding New Event Types
+
+### Option 1: Using the Generic Contract Event Listener
+
+Create a custom event listener by implementing `GenericContractEventListener`:
+
+```java
+@Component
+public class MyContractEventListener implements GenericContractEventListener {
+    
+    @Override
+    public boolean handleEvent(Log log, ContractConfig contractConfig, EventConfig eventConfig) {
+        // Handle the event and return true if processed
+        MyCustomEvent event = parseEvent(log);
+        eventBus.post(event);
+        return true;
+    }
+    
+    @Override
+    public boolean supportsContract(ContractConfig contractConfig) {
+        // Return true if this listener should handle this contract
+        return "MyContract".equals(contractConfig.name());
+    }
+    
+    @Override
+    public int getPriority() {
+        return 5; // Higher numbers processed first
+    }
+}
+```
+
+### Option 2: Traditional Event Model
 
 1. **Create Event Model**:
 ```java
@@ -237,15 +306,42 @@ public record MyCustomEvent(
 }
 ```
 
-2. **Configure in application.yml**:
+2. **Configure in application.yml with Block Range Support**:
 ```yaml
 contracts:
   - name: "MyContract"
     address: "0x..."
+    block-range:
+      from-block: 18500000  # Start from specific block
+      to-block: null        # null = continuous listening
     events:
       - name: "MyEvent"
         signature: "0x..." # Event signature hash
         enabled: true
+```
+
+### Block Range Configuration Options
+
+```yaml
+# Listen from latest blocks only (default)
+block-range:
+  from-block: null
+  to-block: null
+
+# Listen from a specific block onwards  
+block-range:
+  from-block: 18500000
+  to-block: null
+
+# Listen to a specific block range
+block-range:
+  from-block: 18500000
+  to-block: 18600000
+
+# Listen from genesis (be careful with this!)
+block-range:
+  from-block: 0
+  to-block: null
 ```
 
 3. **Add Handler Logic** in `EthereumEventListenerService`:
