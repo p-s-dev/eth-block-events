@@ -1,0 +1,19 @@
+ethereum:
+  # Use a testnet for development (Sepolia)
+  node-url: https://sepolia.infura.io/v3/YOUR_INFURA_PROJECT_ID
+  
+  # Example contracts on Sepolia testnet
+  contracts:
+    # Example testnet ERC20 token
+    - name: "TestToken"
+      address: "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984"
+      events:
+        - name: "Transfer"
+          signature: "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+          topics: []
+          enabled: true
+
+logging:
+  level:
+    dev.ps.ethblockevents: DEBUG
+    org.web3j: INFO
