@@ -1,5 +1,7 @@
 # Ethereum Block Events
 
+Learn to use co-pilot by rebuilding an old project from the ground up with mostly just co-pilot instructions
+
 A Spring Boot Java application that uses RxJava events to listen to an Infura node with Web3j. When blockchain events happen, it publishes them to a Google Guava EventBus for easy consumption by other components.
 
 ## Features
