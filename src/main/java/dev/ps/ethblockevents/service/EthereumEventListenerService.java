@@ -322,4 +322,12 @@ public class EthereumEventListenerService {
         }
         return DefaultBlockParameter.valueOf(BigInteger.valueOf(blockRange.toBlock()));
     }
+    
+    /**
+     * Dynamically add a contract to monitoring at runtime
+     */
+    public void addDynamicContract(EthereumProperties.ContractConfig contractConfig) {
+        logger.info("Dynamically adding contract: {} at {}", contractConfig.name(), contractConfig.address());
+        subscribeToContractEvents(contractConfig);
+    }
 }
