@@ -2,6 +2,9 @@ ethereum:
   # Infura node URL (replace with your Infura project ID)
   node-url: https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID
   
+  # Infura WebSocket URL (replace with your Infura project ID)
+  websocket-url: wss://mainnet.infura.io/ws/v3/YOUR_INFURA_PROJECT_ID
+  
   # Starting block number (null means start from latest)
   start-block: null
   
@@ -12,12 +15,12 @@ ethereum:
   contracts:
     # Example ERC20 token contract (USDC)
     - name: "USDC"
-      address: "0xA0b86a33E6441c8c6c0D4B7D5E7b4F5B7E7E7E7E"
+      address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
       events:
         - name: "Transfer"
           signature: "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
           topics: []
-          enabled: true
+          enabled: false
     
     # Example custom contract
     - name: "CustomContract"
@@ -42,3 +45,5 @@ spring:
     name: eth-block-events
   main:
     banner-mode: console
+  profiles:
+    active: local

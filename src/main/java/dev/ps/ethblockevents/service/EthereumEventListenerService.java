@@ -2,6 +2,7 @@ package dev.ps.ethblockevents.service;
 
 import com.google.common.eventbus.EventBus;
 import dev.ps.ethblockevents.config.EthereumProperties;
+import dev.ps.ethblockevents.model.BlockEvent;
 import dev.ps.ethblockevents.model.ERC20TransferEvent;
 import dev.ps.ethblockevents.model.EthereumEvent;
 import io.reactivex.disposables.Disposable;
@@ -9,6 +10,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import org.web3j.protocol.Web3j;
@@ -21,6 +23,7 @@ import java.math.BigInteger;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Service
 public class EthereumEventListenerService {
@@ -28,12 +31,17 @@ public class EthereumEventListenerService {
     private static final Logger logger = LoggerFactory.getLogger(EthereumEventListenerService.class);
 
     private final Web3j web3j;
+    private final Web3j web3jWebsocket;
     private final EventBus eventBus;
     private final EthereumProperties ethereumProperties;
     private final Map<String, Disposable> subscriptions = new ConcurrentHashMap<>();
 
-    public EthereumEventListenerService(Web3j web3j, EventBus eventBus, EthereumProperties ethereumProperties) {
+    public EthereumEventListenerService(Web3j web3j, 
+                                      @Qualifier("web3jWebsocket") Web3j web3jWebsocket,
+                                      EventBus eventBus, 
+                                      EthereumProperties ethereumProperties) {
         this.web3j = web3j;
+        this.web3jWebsocket = web3jWebsocket;
         this.eventBus = eventBus;
         this.ethereumProperties = ethereumProperties;
     }
@@ -45,6 +53,9 @@ public class EthereumEventListenerService {
         if (ethereumProperties.contracts() != null) {
             ethereumProperties.contracts().forEach(this::subscribeToContractEvents);
         }
+        
+        // Start listening to block events via WebSocket
+        startBlockListening();
     }
 
     @PreDestroy
@@ -52,6 +63,72 @@ public class EthereumEventListenerService {
         logger.info("Stopping Ethereum event listener service");
         subscriptions.values().forEach(Disposable::dispose);
         subscriptions.clear();
+    }
+
+    public void startBlockListening() {
+        if (ethereumProperties.websocketUrl() == null || 
+            ethereumProperties.websocketUrl().trim().isEmpty()) {
+            logger.info("WebSocket URL not configured, skipping block event listener");
+            return;
+        }
+        
+        try {
+            logger.info("Starting block event listener via WebSocket");
+            
+            Disposable blockSubscription = web3jWebsocket.blockFlowable(false)
+                .subscribe(
+                    this::handleBlockEvent,
+                    error -> logger.error("Error in block subscription: {}", error.getMessage(), error)
+                );
+            
+            subscriptions.put("block_listener", blockSubscription);
+            logger.info("Successfully subscribed to block events");
+            
+        } catch (Exception e) {
+            logger.error("Failed to start block listening: {}", e.getMessage(), e);
+        }
+    }
+
+    void handleBlockEvent(EthBlock ethBlock) {
+        try {
+            EthBlock.Block block = ethBlock.getBlock();
+            if (block == null) {
+                return;
+            }
+            
+            logger.debug("Received new block: {} with {} transactions", 
+                        block.getNumber(), block.getTransactions().size());
+            
+            List<String> transactionHashes = block.getTransactions().stream()
+                .map(tx -> {
+                    if (tx instanceof EthBlock.TransactionHash) {
+                        return ((EthBlock.TransactionHash) tx).get();
+                    } else if (tx instanceof EthBlock.TransactionObject) {
+                        return ((EthBlock.TransactionObject) tx).get().getHash();
+                    }
+                    return tx.toString();
+                })
+                .collect(Collectors.toList());
+            
+            BlockEvent blockEvent = new BlockEvent(
+                block.getNumber(),
+                block.getHash(),
+                block.getParentHash(),
+                block.getGasLimit(),
+                block.getGasUsed(),
+                Instant.ofEpochSecond(block.getTimestamp().longValue()),
+                block.getMiner(),
+                transactionHashes,
+                block.getTransactions().size()
+            );
+            
+            eventBus.post(blockEvent);
+            logger.info("Published block event for block: {} with {} transactions", 
+                       block.getNumber(), block.getTransactions().size());
+            
+        } catch (Exception e) {
+            logger.error("Error handling block event: {}", e.getMessage(), e);
+        }
     }
 
     private void subscribeToContractEvents(EthereumProperties.ContractConfig contractConfig) {

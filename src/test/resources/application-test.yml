@@ -1,5 +1,6 @@
 ethereum:
   node-url: "http://localhost:8545"  # Mock URL for testing
+  websocket-url: ""  # Disable WebSocket for tests
   contracts: []  # No contracts for basic tests
 
 logging:

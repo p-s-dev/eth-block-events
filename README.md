@@ -8,11 +8,14 @@ A Spring Boot Java application that uses RxJava events to listen to an Infura no
 
 - **Spring Boot Integration**: Easy configuration and dependency injection
 - **Web3j Integration**: Connect to Ethereum nodes (Infura, local nodes, etc.)
+- **WebSocket Support**: Real-time block streaming via WebSocket connections for immediate block notifications
 - **RxJava Reactive Streams**: Efficient event handling using reactive programming
 - **Google Guava EventBus**: Publish/Subscribe pattern for event distribution
 - **Configurable Event Filtering**: Listen to specific contract events based on Solidity event signatures
+- **Block Event Listening**: Monitor new blocks in real-time via WebSocket streaming
 - **ERC20 Support**: Built-in support for ERC20 Transfer events with automatic decoding
 - **Extensible Architecture**: Easy to add new event types and handlers
+- **Local Config Support**: Private configuration files (gitignored) for secure API key management
 
 ## Configuration
 
@@ -24,6 +27,9 @@ Configure your Ethereum connection and contracts in `application.yml`:
 ethereum:
   # Your Infura project URL (or any other Ethereum node)
   node-url: https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID
+  
+  # Your Infura WebSocket URL for real-time block streaming (NEW!)
+  websocket-url: wss://mainnet.infura.io/ws/v3/YOUR_INFURA_PROJECT_ID
   
   # Starting block number (null means start from latest)
   start-block: null
@@ -42,6 +48,16 @@ ethereum:
           topics: []
           enabled: true
 ```
+
+### Local Configuration (Recommended)
+
+For security, create an `application-local.yml` file (which is gitignored) with your actual Infura project ID:
+
+1. Copy `application-local-sample.yml` to `application-local.yml`
+2. Replace `YOUR_INFURA_PROJECT_ID` with your actual Infura project ID
+3. The local file will override the default configuration
+
+**Important**: Never commit your actual Infura project ID to version control. The `application-local.yml` file is automatically excluded by `.gitignore`.
 
 ### Environment-Specific Configuration
 
@@ -108,6 +124,13 @@ public class MyEventHandler {
         logger.info("ERC20 Transfer: {} tokens from {} to {}", 
                    event.value(), event.from(), event.to());
     }
+    
+    @Subscribe
+    public void handleBlockEvent(BlockEvent event) {
+        // Handle new block events (requires WebSocket configuration)
+        logger.info("New block: {} with {} transactions (miner: {})", 
+                   event.blockNumber(), event.transactionCount(), event.miner());
+    }
 }
 ```
 
@@ -127,6 +150,16 @@ Specific event for ERC20 transfers containing:
 - Transfer amount
 - Contract address
 - Transaction details
+
+#### BlockEvent (NEW!)
+Real-time block events (requires WebSocket configuration) containing:
+- Block number and hash
+- Parent hash
+- Gas limit and gas used
+- Block timestamp
+- Miner address
+- List of transaction hashes
+- Transaction count
 
 ## Adding New Event Types
 

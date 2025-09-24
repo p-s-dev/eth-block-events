@@ -8,6 +8,7 @@ import java.util.Map;
 @ConfigurationProperties(prefix = "ethereum")
 public record EthereumProperties(
     String nodeUrl,
+    String websocketUrl,
     Long startBlock,
     Integer blockPollingInterval,
     List<ContractConfig> contracts
