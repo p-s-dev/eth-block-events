@@ -14,8 +14,53 @@ A Spring Boot Java application that uses RxJava events to listen to an Infura no
 - **Configurable Event Filtering**: Listen to specific contract events based on Solidity event signatures
 - **Block Event Listening**: Monitor new blocks in real-time via WebSocket streaming
 - **ERC20 Support**: Built-in support for ERC20 Transfer events with automatic decoding
+- **Uniswap V4 Support**: Built-in support for Uniswap V4 events (Initialize, Swap, ModifyLiquidity)
+- **Java Contract Wrappers**: Auto-generated Java stubs from Solidity contracts/ABIs for type-safe interaction
 - **Extensible Architecture**: Easy to add new event types and handlers
 - **Local Config Support**: Private configuration files (gitignored) for secure API key management
+
+## Contract Integration
+
+### Solidity Contracts and ABIs
+
+The project includes Solidity contract interfaces and ABIs in organized folders:
+
+```
+src/main/resources/contracts/
+├── solidity/
+│   ├── usdc/
+│   │   └── IERC20.sol
+│   └── uniswap-v4/
+│       └── IUniswapV4Events.sol
+└── abi/
+    ├── IERC20.json
+    └── IUniswapV4Events.json
+```
+
+### Java Contract Wrappers
+
+The project uses the Web3j Maven plugin to automatically generate Java contract wrappers during the build process. These type-safe wrappers are generated from both Solidity files and ABI JSON files.
+
+Generated wrapper classes include:
+- `dev.ps.ethblockevents.contracts.IERC20` - For ERC20 token interactions (USDC)
+- `dev.ps.ethblockevents.contracts.IUniswapV4Events` - For Uniswap V4 event monitoring
+
+### Build Process
+
+The build automatically generates Java stubs from contracts:
+
+```bash
+# Generate contract wrappers and compile
+mvn compile
+
+# Clean build with fresh contract generation
+mvn clean compile
+```
+
+The Web3j plugin runs during the `generate-sources` phase and creates type-safe Java classes for:
+- Event filtering and listening
+- Contract method calls
+- Event data decoding
 
 ## Configuration
 
@@ -39,11 +84,31 @@ ethereum:
   
   # Contract configurations
   contracts:
-    # Example ERC20 token contract (USDC)
+    # USDC Token Contract
     - name: "USDC"
-      address: "0xA0b86a33E6441c8c6c0D4B7D5E7b4F5B7E7E7E7E"
+      address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
       events:
         - name: "Transfer"
+          signature: "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+          topics: []
+          enabled: true
+        - name: "Approval"
+          signature: "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925"
+          topics: []
+          enabled: false
+    
+    # Uniswap V4 Pool Manager Contract (will be updated when V4 is deployed)
+    - name: "UniswapV4PoolManager"
+      address: "0x0000000000000000000000000000000000000000"  # Placeholder
+      events:
+        - name: "Initialize"
+          signature: "0x98636036cb66a9c19a37435efc1e90142190214e8abeb821bdda3f2990dd4c95"
+          topics: []
+          enabled: false
+        - name: "Swap"
+          signature: "0x0d3648bd0f6ba80134a33ba9275ac585d9d315f0ad8355cddefde31afa28d0e9"
+          topics: []
+          enabled: false
           signature: "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
           topics: []
           enabled: true
@@ -126,6 +191,24 @@ public class MyEventHandler {
     }
     
     @Subscribe
+    public void handleUniswapSwap(UniswapSwapEvent event) {
+        // Handle Uniswap V4 swap events
+        logger.info("Uniswap Swap in pool {}: {} <-> {} by {}", 
+                   bytesToHex(event.poolId()), 
+                   event.amount0(), event.amount1(), 
+                   event.sender());
+    }
+    
+    @Subscribe
+    public void handleUniswapInitialize(UniswapInitializeEvent event) {
+        // Handle new Uniswap pool initialization
+        logger.info("New Uniswap pool {} initialized: {} <-> {} (fee: {})", 
+                   bytesToHex(event.poolId()), 
+                   event.currency0(), event.currency1(), 
+                   event.fee());
+    }
+    
+    @Subscribe
     public void handleBlockEvent(BlockEvent event) {
         // Handle new block events (requires WebSocket configuration)
         logger.info("New block: {} with {} transactions (miner: {})", 
@@ -138,11 +221,10 @@ public class MyEventHandler {
 
 #### EthereumEvent
 Generic event containing:
-- Event name
-- Contract address
-- Transaction hash
-- Block number and timestamp
+- Event name and contract address
+- Transaction hash and block information
 - Raw topics and data
+- Timestamp and log index
 
 #### ERC20TransferEvent
 Specific event for ERC20 transfers containing:
@@ -151,7 +233,28 @@ Specific event for ERC20 transfers containing:
 - Contract address
 - Transaction details
 
-#### BlockEvent (NEW!)
+#### UniswapSwapEvent (NEW!)
+Uniswap V4 swap events containing:
+- Pool ID and sender address
+- Token amounts (amount0, amount1)
+- Price and liquidity data
+- Transaction details
+
+#### UniswapInitializeEvent (NEW!)
+Uniswap V4 pool initialization events containing:
+- Pool ID and currency pair
+- Fee tier and tick spacing
+- Hooks contract address
+- Transaction details
+
+#### UniswapModifyLiquidityEvent (NEW!)
+Uniswap V4 liquidity modification events containing:
+- Pool ID and sender address
+- Tick range (tickLower, tickUpper)
+- Liquidity delta
+- Transaction details
+
+#### BlockEvent
 Real-time block events (requires WebSocket configuration) containing:
 - Block number and hash
 - Parent hash
@@ -162,6 +265,37 @@ Real-time block events (requires WebSocket configuration) containing:
 - Transaction count
 
 ## Adding New Event Types
+
+### Option 1: Using the Generic Contract Event Listener
+
+Create a custom event listener by implementing `GenericContractEventListener`:
+
+```java
+@Component
+public class MyContractEventListener implements GenericContractEventListener {
+    
+    @Override
+    public boolean handleEvent(Log log, ContractConfig contractConfig, EventConfig eventConfig) {
+        // Handle the event and return true if processed
+        MyCustomEvent event = parseEvent(log);
+        eventBus.post(event);
+        return true;
+    }
+    
+    @Override
+    public boolean supportsContract(ContractConfig contractConfig) {
+        // Return true if this listener should handle this contract
+        return "MyContract".equals(contractConfig.name());
+    }
+    
+    @Override
+    public int getPriority() {
+        return 5; // Higher numbers processed first
+    }
+}
+```
+
+### Option 2: Traditional Event Model
 
 1. **Create Event Model**:
 ```java
@@ -174,15 +308,42 @@ public record MyCustomEvent(
 }
 ```
 
-2. **Configure in application.yml**:
+2. **Configure in application.yml with Block Range Support**:
 ```yaml
 contracts:
   - name: "MyContract"
     address: "0x..."
+    block-range:
+      from-block: 18500000  # Start from specific block
+      to-block: null        # null = continuous listening
     events:
       - name: "MyEvent"
         signature: "0x..." # Event signature hash
         enabled: true
+```
+
+### Block Range Configuration Options
+
+```yaml
+# Listen from latest blocks only (default)
+block-range:
+  from-block: null
+  to-block: null
+
+# Listen from a specific block onwards  
+block-range:
+  from-block: 18500000
+  to-block: null
+
+# Listen to a specific block range
+block-range:
+  from-block: 18500000
+  to-block: 18600000
+
+# Listen from genesis (be careful with this!)
+block-range:
+  from-block: 0
+  to-block: null
 ```
 
 3. **Add Handler Logic** in `EthereumEventListenerService`:

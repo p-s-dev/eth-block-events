@@ -19,6 +19,9 @@ ethereum:
     # USDC Token Contract
     - name: "USDC"
       address: "0xA1b86a33E6441c8c6c0D4B7D5E7b4F5B7E7E7E7E"
+      block-range:
+        from-block: null  # null means start from latest block
+        to-block: null    # null means continuous listening
       events:
         - name: "Transfer"
           signature: "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
@@ -32,6 +35,9 @@ ethereum:
     # Uniswap V2 Pair Contract (example)
     - name: "UniswapV2Pair"
       address: "0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc"
+      block-range:
+        from-block: 18500000  # Start from a specific block
+        to-block: null        # Continue listening to new blocks
       events:
         - name: "Swap"
           signature: "0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822"
@@ -41,6 +47,26 @@ ethereum:
           signature: "0x1c411e9a96e071241c2f21f7726b17ae89e3cab4c78be50e062b03a9fffbbad1"
           topics: []
           enabled: false
+    
+    # Uniswap V4 Contract (example)
+    - name: "UniswapV4"
+      address: "0x1234567890123456789012345678901234567890"
+      block-range:
+        from-block: null  # Start from latest
+        to-block: null    # Continuous listening
+      events:
+        - name: "Swap"
+          signature: "0x9cd312f3503782cb1d29f4114896ca5405e9cf41adf9a23b76f74203d292296e"
+          topics: []
+          enabled: true
+        - name: "Initialize"
+          signature: "0x3fd553db44f207b1f41348cfc4d251860814af9eadc470e8e7895e4d120511f4"
+          topics: []
+          enabled: true
+        - name: "ModifyLiquidity"
+          signature: "0x541c041c2cce48e614b3de043c9280f06b6164c0a1741649e2de3c3d375f7974"
+          topics: []
+          enabled: true
 
 logging:
   level:

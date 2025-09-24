@@ -1,6 +1,6 @@
 package dev.ps.ethblockevents.util;
 
-import org.springframework.util.DigestUtils;
+import org.web3j.crypto.Hash;
 
 /**
  * Utility class for generating Ethereum event signatures
@@ -14,26 +14,8 @@ public class EventSignatureUtil {
      * @return The hex string of the Keccak256 hash with 0x prefix
      */
     public static String generateEventSignature(String eventSignature) {
-        // Note: This is a simplified implementation using SHA-256 instead of Keccak256
-        // For production use, you should use a proper Keccak256 implementation
-        // like org.web3j.crypto.Hash.sha3()
-        
-        byte[] hash = DigestUtils.md5Digest(eventSignature.getBytes());
-        StringBuilder hexString = new StringBuilder("0x");
-        for (byte b : hash) {
-            String hex = Integer.toHexString(0xff & b);
-            if (hex.length() == 1) {
-                hexString.append('0');
-            }
-            hexString.append(hex);
-        }
-        
-        // Pad to 64 characters (32 bytes) for proper event topic format
-        while (hexString.length() < 66) { // 0x + 64 chars
-            hexString.append('0');
-        }
-        
-        return hexString.toString();
+        // Use Web3j's Keccak256 implementation
+        return Hash.sha3String(eventSignature);
     }
 
     /**
@@ -45,11 +27,19 @@ public class EventSignatureUtil {
         public static final String ERC721_TRANSFER = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
         public static final String ERC721_APPROVAL = "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925";
         public static final String ERC721_APPROVAL_FOR_ALL = "0x17307eab39ab6107e8899845ad3d59bd9653f200f220920489ca2b5937696c31";
+        
+        // Uniswap V4 event signatures
+        public static final String UNISWAP_SWAP = generateEventSignature("Swap(bytes32,address,int128,int128,uint160,uint128,int24)");
+        public static final String UNISWAP_INITIALIZE = generateEventSignature("Initialize(bytes32,address,address,uint24,int24,address)");
+        public static final String UNISWAP_MODIFY_LIQUIDITY = generateEventSignature("ModifyLiquidity(bytes32,address,int24,int24,int256)");
     }
 
     public static void main(String[] args) {
-        // Example usage
+        // Example usage - generates correct event signatures
         System.out.println("ERC20 Transfer: " + generateEventSignature("Transfer(address,address,uint256)"));
         System.out.println("ERC20 Approval: " + generateEventSignature("Approval(address,address,uint256)"));
+        System.out.println("Uniswap Swap: " + generateEventSignature("Swap(bytes32,address,int128,int128,uint160,uint128,int24)"));
+        System.out.println("Uniswap Initialize: " + generateEventSignature("Initialize(bytes32,address,address,uint24,int24,address)"));
+        System.out.println("Uniswap ModifyLiquidity: " + generateEventSignature("ModifyLiquidity(bytes32,address,int24,int24,int256)"));
     }
 }

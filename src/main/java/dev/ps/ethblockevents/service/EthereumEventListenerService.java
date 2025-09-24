@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import org.web3j.protocol.Web3j;
+import org.web3j.protocol.core.DefaultBlockParameter;
 import org.web3j.protocol.core.DefaultBlockParameterName;
 import org.web3j.protocol.core.methods.request.EthFilter;
 import org.web3j.protocol.core.methods.response.EthBlock;
@@ -35,15 +36,20 @@ public class EthereumEventListenerService {
     private final EventBus eventBus;
     private final EthereumProperties ethereumProperties;
     private final Map<String, Disposable> subscriptions = new ConcurrentHashMap<>();
+    private final List<GenericContractEventListener> eventListeners;
 
     public EthereumEventListenerService(Web3j web3j, 
                                       @Qualifier("web3jWebsocket") Web3j web3jWebsocket,
                                       EventBus eventBus, 
-                                      EthereumProperties ethereumProperties) {
+                                      EthereumProperties ethereumProperties,
+                                      List<GenericContractEventListener> eventListeners) {
         this.web3j = web3j;
         this.web3jWebsocket = web3jWebsocket;
         this.eventBus = eventBus;
         this.ethereumProperties = ethereumProperties;
+        this.eventListeners = eventListeners.stream()
+            .sorted((a, b) -> Integer.compare(b.getPriority(), a.getPriority()))
+            .collect(Collectors.toList());
     }
 
     @PostConstruct
@@ -148,9 +154,14 @@ public class EthereumEventListenerService {
                                  EthereumProperties.EventConfig eventConfig) {
         
         try {
+            // Determine block range for the filter
+            EthereumProperties.BlockRange blockRange = contractConfig.blockRange();
+            DefaultBlockParameter fromBlock = getFromBlockParameter(blockRange);
+            DefaultBlockParameter toBlock = getToBlockParameter(blockRange);
+            
             EthFilter filter = new EthFilter(
-                DefaultBlockParameterName.LATEST,
-                DefaultBlockParameterName.LATEST,
+                fromBlock,
+                toBlock,
                 contractConfig.address()
             );
 
@@ -173,8 +184,8 @@ public class EthereumEventListenerService {
                 );
 
             subscriptions.put(subscriptionKey, subscription);
-            logger.info("Successfully subscribed to event: {} for contract: {}", 
-                       eventConfig.name(), contractConfig.name());
+            logger.info("Successfully subscribed to event: {} for contract: {} (blocks: {} to {})", 
+                       eventConfig.name(), contractConfig.name(), fromBlock, toBlock);
 
         } catch (Exception e) {
             logger.error("Failed to subscribe to event: {} for contract: {}", 
@@ -187,26 +198,43 @@ public class EthereumEventListenerService {
         try {
             logger.debug("Received log event: {} for contract: {}", eventConfig.name(), contractConfig.name());
 
-            // Get block timestamp
-            Instant timestamp = getBlockTimestamp(log.getBlockNumber());
+            // First, try specialized listeners
+            boolean handled = false;
+            for (GenericContractEventListener listener : eventListeners) {
+                if (listener.supportsContract(contractConfig)) {
+                    handled = listener.handleEvent(log, contractConfig, eventConfig);
+                    if (handled) {
+                        logger.debug("Event handled by specialized listener: {}", listener.getClass().getSimpleName());
+                        break;
+                    }
+                }
+            }
 
-            // Create generic Ethereum event
-            EthereumEvent ethereumEvent = new EthereumEvent(
-                eventConfig.name(),
-                log.getAddress(),
-                log.getTransactionHash(),
-                log.getBlockNumber(),
-                log.getLogIndex(),
-                timestamp,
-                log.getTopics(),
-                log.getData(),
-                Collections.emptyMap() // TODO: Implement parameter decoding
-            );
+            // If no specialized listener handled it, create a generic event
+            if (!handled) {
+                // Get block timestamp
+                Instant timestamp = getBlockTimestamp(log.getBlockNumber());
 
-            // Publish to EventBus
-            eventBus.post(ethereumEvent);
+                // Create generic Ethereum event
+                EthereumEvent ethereumEvent = new EthereumEvent(
+                    eventConfig.name(),
+                    log.getAddress(),
+                    log.getTransactionHash(),
+                    log.getBlockNumber(),
+                    log.getLogIndex(),
+                    timestamp,
+                    log.getTopics(),
+                    log.getData(),
+                    Collections.emptyMap() // TODO: Implement parameter decoding
+                );
 
-            // Handle specific event types
+                // Publish to EventBus
+                eventBus.post(ethereumEvent);
+                logger.info("Published generic Ethereum event: {} for contract: {}", 
+                           eventConfig.name(), contractConfig.name());
+            }
+
+            // Handle specific legacy event types (for backward compatibility)
             if ("Transfer".equals(eventConfig.name()) && isERC20TransferEvent(log)) {
                 handleERC20TransferEvent(log);
             }
@@ -273,5 +301,33 @@ public class EthereumEventListenerService {
             logger.warn("Failed to get block timestamp for block {}: {}", blockNumber, e.getMessage());
         }
         return Instant.now();
+    }
+    
+    /**
+     * Determines the from block parameter based on block range configuration
+     */
+    private DefaultBlockParameter getFromBlockParameter(EthereumProperties.BlockRange blockRange) {
+        if (blockRange == null || blockRange.fromBlock() == null) {
+            return DefaultBlockParameterName.LATEST;
+        }
+        return DefaultBlockParameter.valueOf(BigInteger.valueOf(blockRange.fromBlock()));
+    }
+    
+    /**
+     * Determines the to block parameter based on block range configuration
+     */
+    private DefaultBlockParameter getToBlockParameter(EthereumProperties.BlockRange blockRange) {
+        if (blockRange == null || blockRange.toBlock() == null) {
+            return DefaultBlockParameterName.LATEST;
+        }
+        return DefaultBlockParameter.valueOf(BigInteger.valueOf(blockRange.toBlock()));
+    }
+    
+    /**
+     * Dynamically add a contract to monitoring at runtime
+     */
+    public void addDynamicContract(EthereumProperties.ContractConfig contractConfig) {
+        logger.info("Dynamically adding contract: {} at {}", contractConfig.name(), contractConfig.address());
+        subscribeToContractEvents(contractConfig);
     }
 }

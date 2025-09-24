@@ -17,7 +17,8 @@ public record EthereumProperties(
     public record ContractConfig(
         String name,
         String address,
-        List<EventConfig> events
+        List<EventConfig> events,
+        BlockRange blockRange  // New field for block range filtering
     ) {}
     
     public record EventConfig(
@@ -26,4 +27,15 @@ public record EthereumProperties(
         List<String> topics,
         boolean enabled
     ) {}
+    
+    /**
+     * Block range configuration for event filtering
+     */
+    public record BlockRange(
+        Long fromBlock,  // null means "latest"
+        Long toBlock     // null means "latest" or continuous listening
+    ) {
+        public static final BlockRange LATEST = new BlockRange(null, null);
+        public static final BlockRange ALL = new BlockRange(0L, null);
+    }
 }
