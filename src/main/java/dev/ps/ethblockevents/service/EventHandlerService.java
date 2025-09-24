@@ -5,6 +5,9 @@ import com.google.common.eventbus.Subscribe;
 import dev.ps.ethblockevents.model.BlockEvent;
 import dev.ps.ethblockevents.model.ERC20TransferEvent;
 import dev.ps.ethblockevents.model.EthereumEvent;
+import dev.ps.ethblockevents.model.UniswapInitializeEvent;
+import dev.ps.ethblockevents.model.UniswapModifyLiquidityEvent;
+import dev.ps.ethblockevents.model.UniswapSwapEvent;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,5 +67,53 @@ public class EventHandlerService {
         
         // Add your custom logic here to handle block events
         // For example: monitor block times, analyze gas usage, track specific miners, etc.
+    }
+    
+    @Subscribe
+    public void handleUniswapSwapEvent(UniswapSwapEvent event) {
+        logger.info("Received Uniswap Swap: pool {} traded {} <-> {} by {} (tx: {})", 
+                   bytesToHex(event.poolId()),
+                   event.amount0(), 
+                   event.amount1(),
+                   event.sender(),
+                   event.transactionHash());
+        
+        // Add your custom logic here to handle Uniswap swap events
+        // For example: track trading volumes, analyze price impacts, monitor specific pools, etc.
+    }
+    
+    @Subscribe
+    public void handleUniswapInitializeEvent(UniswapInitializeEvent event) {
+        logger.info("Received Uniswap Initialize: new pool {} for currencies {} <-> {} (fee: {}, tx: {})", 
+                   bytesToHex(event.poolId()),
+                   event.currency0(), 
+                   event.currency1(),
+                   event.fee(),
+                   event.transactionHash());
+        
+        // Add your custom logic here to handle Uniswap pool initialization events
+        // For example: track new pools, analyze fee structures, monitor specific currency pairs, etc.
+    }
+    
+    @Subscribe
+    public void handleUniswapModifyLiquidityEvent(UniswapModifyLiquidityEvent event) {
+        logger.info("Received Uniswap ModifyLiquidity: pool {} liquidity changed by {} (ticks: {}-{}, sender: {}, tx: {})", 
+                   bytesToHex(event.poolId()),
+                   event.liquidityDelta(),
+                   event.tickLower(),
+                   event.tickUpper(),
+                   event.sender(),
+                   event.transactionHash());
+        
+        // Add your custom logic here to handle Uniswap liquidity modification events
+        // For example: track liquidity changes, analyze LP activity, monitor specific ranges, etc.
+    }
+    
+    private String bytesToHex(byte[] bytes) {
+        StringBuilder result = new StringBuilder("0x");
+        for (byte b : bytes) {
+            result.append(String.format("%02x", b));
+        }
+        return result.toString();
     }
 }
