@@ -1,0 +1,7 @@
+ethereum:
+  node-url: "http://localhost:8545"  # Mock URL for testing
+  contracts: []  # No contracts for basic tests
+
+logging:
+  level:
+    dev.ps.ethblockevents: DEBUG

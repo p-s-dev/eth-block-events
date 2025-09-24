@@ -1,0 +1,200 @@
+package dev.ps.ethblockevents.service;
+
+import com.google.common.eventbus.EventBus;
+import dev.ps.ethblockevents.config.EthereumProperties;
+import dev.ps.ethblockevents.model.ERC20TransferEvent;
+import dev.ps.ethblockevents.model.EthereumEvent;
+import io.reactivex.disposables.Disposable;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+import org.web3j.protocol.Web3j;
+import org.web3j.protocol.core.DefaultBlockParameterName;
+import org.web3j.protocol.core.methods.request.EthFilter;
+import org.web3j.protocol.core.methods.response.EthBlock;
+import org.web3j.protocol.core.methods.response.Log;
+
+import java.math.BigInteger;
+import java.time.Instant;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+
+@Service
+public class EthereumEventListenerService {
+
+    private static final Logger logger = LoggerFactory.getLogger(EthereumEventListenerService.class);
+
+    private final Web3j web3j;
+    private final EventBus eventBus;
+    private final EthereumProperties ethereumProperties;
+    private final Map<String, Disposable> subscriptions = new ConcurrentHashMap<>();
+
+    public EthereumEventListenerService(Web3j web3j, EventBus eventBus, EthereumProperties ethereumProperties) {
+        this.web3j = web3j;
+        this.eventBus = eventBus;
+        this.ethereumProperties = ethereumProperties;
+    }
+
+    @PostConstruct
+    public void startListening() {
+        logger.info("Starting Ethereum event listener service");
+        
+        if (ethereumProperties.contracts() != null) {
+            ethereumProperties.contracts().forEach(this::subscribeToContractEvents);
+        }
+    }
+
+    @PreDestroy
+    public void stopListening() {
+        logger.info("Stopping Ethereum event listener service");
+        subscriptions.values().forEach(Disposable::dispose);
+        subscriptions.clear();
+    }
+
+    private void subscribeToContractEvents(EthereumProperties.ContractConfig contractConfig) {
+        if (contractConfig.events() == null || contractConfig.events().isEmpty()) {
+            return;
+        }
+
+        logger.info("Subscribing to events for contract: {} at address: {}", 
+                   contractConfig.name(), contractConfig.address());
+
+        contractConfig.events().stream()
+                .filter(EthereumProperties.EventConfig::enabled)
+                .forEach(eventConfig -> subscribeToEvent(contractConfig, eventConfig));
+    }
+
+    private void subscribeToEvent(EthereumProperties.ContractConfig contractConfig, 
+                                 EthereumProperties.EventConfig eventConfig) {
+        
+        try {
+            EthFilter filter = new EthFilter(
+                DefaultBlockParameterName.LATEST,
+                DefaultBlockParameterName.LATEST,
+                contractConfig.address()
+            );
+
+            // Add event signature as first topic
+            if (eventConfig.signature() != null && !eventConfig.signature().isEmpty()) {
+                filter.addSingleTopic(eventConfig.signature());
+            }
+
+            // Add additional topics if specified
+            if (eventConfig.topics() != null) {
+                eventConfig.topics().forEach(filter::addSingleTopic);
+            }
+
+            String subscriptionKey = contractConfig.address() + "_" + eventConfig.name();
+            
+            Disposable subscription = web3j.ethLogFlowable(filter)
+                .subscribe(
+                    log -> handleLogEvent(log, contractConfig, eventConfig),
+                    error -> logger.error("Error in subscription for {}: {}", subscriptionKey, error.getMessage(), error)
+                );
+
+            subscriptions.put(subscriptionKey, subscription);
+            logger.info("Successfully subscribed to event: {} for contract: {}", 
+                       eventConfig.name(), contractConfig.name());
+
+        } catch (Exception e) {
+            logger.error("Failed to subscribe to event: {} for contract: {}", 
+                        eventConfig.name(), contractConfig.name(), e);
+        }
+    }
+
+    private void handleLogEvent(Log log, EthereumProperties.ContractConfig contractConfig, 
+                               EthereumProperties.EventConfig eventConfig) {
+        try {
+            logger.debug("Received log event: {} for contract: {}", eventConfig.name(), contractConfig.name());
+
+            // Get block timestamp
+            Instant timestamp = getBlockTimestamp(log.getBlockNumber());
+
+            // Create generic Ethereum event
+            EthereumEvent ethereumEvent = new EthereumEvent(
+                eventConfig.name(),
+                log.getAddress(),
+                log.getTransactionHash(),
+                log.getBlockNumber(),
+                log.getLogIndex(),
+                timestamp,
+                log.getTopics(),
+                log.getData(),
+                Collections.emptyMap() // TODO: Implement parameter decoding
+            );
+
+            // Publish to EventBus
+            eventBus.post(ethereumEvent);
+
+            // Handle specific event types
+            if ("Transfer".equals(eventConfig.name()) && isERC20TransferEvent(log)) {
+                handleERC20TransferEvent(log);
+            }
+
+        } catch (Exception e) {
+            logger.error("Error handling log event: {}", e.getMessage(), e);
+        }
+    }
+
+    private boolean isERC20TransferEvent(Log log) {
+        return log.getTopics().size() >= 1 && 
+               ERC20TransferEvent.TOPIC_0.equals(log.getTopics().get(0));
+    }
+
+    private void handleERC20TransferEvent(Log log) {
+        try {
+            if (log.getTopics().size() < 3) {
+                logger.warn("Invalid ERC20 Transfer event - not enough topics");
+                return;
+            }
+
+            String from = "0x" + log.getTopics().get(1).substring(26);
+            String to = "0x" + log.getTopics().get(2).substring(26);
+            
+            // Decode value from data
+            BigInteger value = BigInteger.ZERO;
+            if (log.getData() != null && !log.getData().equals("0x")) {
+                try {
+                    value = new BigInteger(log.getData().substring(2), 16);
+                } catch (NumberFormatException e) {
+                    logger.warn("Failed to decode transfer value: {}", e.getMessage());
+                }
+            }
+
+            ERC20TransferEvent transferEvent = new ERC20TransferEvent(
+                log.getAddress(),
+                from,
+                to,
+                value,
+                log.getTransactionHash(),
+                log.getBlockNumber(),
+                log.getLogIndex()
+            );
+
+            eventBus.post(transferEvent);
+            logger.info("Published ERC20 Transfer event: {} tokens from {} to {} in tx: {}", 
+                       value, from, to, log.getTransactionHash());
+
+        } catch (Exception e) {
+            logger.error("Error handling ERC20 Transfer event: {}", e.getMessage(), e);
+        }
+    }
+
+    private Instant getBlockTimestamp(BigInteger blockNumber) {
+        try {
+            EthBlock ethBlock = web3j.ethGetBlockByNumber(
+                org.web3j.protocol.core.DefaultBlockParameter.valueOf(blockNumber), false
+            ).send();
+            
+            if (ethBlock.getBlock() != null) {
+                return Instant.ofEpochSecond(ethBlock.getBlock().getTimestamp().longValue());
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to get block timestamp for block {}: {}", blockNumber, e.getMessage());
+        }
+        return Instant.now();
+    }
+}

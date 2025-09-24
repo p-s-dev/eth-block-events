@@ -1,0 +1,45 @@
+# Example configuration file
+# Copy this to application-local.yml and modify for your setup
+
+ethereum:
+  # Replace with your Infura project ID
+  node-url: https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID
+  
+  # Optional: Start from specific block (null = latest)
+  start-block: null
+  
+  # How often to poll for new blocks (milliseconds)
+  block-polling-interval: 1000
+  
+  # Configure contracts and events to listen to
+  contracts:
+    # USDC Token Contract
+    - name: "USDC"
+      address: "0xA1b86a33E6441c8c6c0D4B7D5E7b4F5B7E7E7E7E"
+      events:
+        - name: "Transfer"
+          signature: "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+          topics: []
+          enabled: true
+        - name: "Approval"
+          signature: "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925"
+          topics: []
+          enabled: false
+    
+    # Uniswap V2 Pair Contract (example)
+    - name: "UniswapV2Pair"
+      address: "0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc"
+      events:
+        - name: "Swap"
+          signature: "0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822"
+          topics: []
+          enabled: false
+        - name: "Sync"
+          signature: "0x1c411e9a96e071241c2f21f7726b17ae89e3cab4c78be50e062b03a9fffbbad1"
+          topics: []
+          enabled: false
+
+logging:
+  level:
+    dev.ps.ethblockevents: INFO
+    org.web3j: WARN
