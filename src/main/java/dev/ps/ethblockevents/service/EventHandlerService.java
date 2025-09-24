@@ -2,6 +2,7 @@ package dev.ps.ethblockevents.service;
 
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
+import dev.ps.ethblockevents.model.BlockEvent;
 import dev.ps.ethblockevents.model.ERC20TransferEvent;
 import dev.ps.ethblockevents.model.EthereumEvent;
 import jakarta.annotation.PostConstruct;
@@ -51,5 +52,17 @@ public class EventHandlerService {
         
         // Add your custom logic here to handle ERC20 transfer events
         // For example: update balances, trigger alerts for large transfers, etc.
+    }
+
+    @Subscribe
+    public void handleBlockEvent(BlockEvent event) {
+        logger.info("Received new block: {} with {} transactions (miner: {}, gas used: {})", 
+                   event.blockNumber(), 
+                   event.transactionCount(),
+                   event.miner(),
+                   event.gasUsed());
+        
+        // Add your custom logic here to handle block events
+        // For example: monitor block times, analyze gas usage, track specific miners, etc.
     }
 }

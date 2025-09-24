@@ -2,6 +2,9 @@ ethereum:
   # Infura node URL (replace with your Infura project ID)
   node-url: https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID
   
+  # Infura WebSocket URL (replace with your Infura project ID)
+  websocket-url: wss://mainnet.infura.io/ws/v3/YOUR_INFURA_PROJECT_ID
+  
   # Starting block number (null means start from latest)
   start-block: null
   
