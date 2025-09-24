@@ -5,6 +5,9 @@ ethereum:
   # Replace with your Infura project ID
   node-url: https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID
   
+  # Replace with your Infura WebSocket project ID for block streaming
+  websocket-url: wss://mainnet.infura.io/ws/v3/YOUR_INFURA_PROJECT_ID
+  
   # Optional: Start from specific block (null = latest)
   start-block: null
   

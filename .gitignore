@@ -37,4 +37,4 @@ Thumbs.db
 application-local.yml
 application-*.properties
 !application-dev.yml
-!application-test.yml
+!application-test.ymlclasspath.txt
