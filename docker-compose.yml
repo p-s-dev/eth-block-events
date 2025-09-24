@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  eth-block-events:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eth-block-events
+    restart: unless-stopped
+    environment:
+      # Spring profile (dev for testnet, prod for mainnet)
+      - SPRING_PROFILES_ACTIVE=dev
+      # Override application properties using environment variables
+      # - ETHEREUM_NODE_URL=https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID
+      # - ETHEREUM_START_BLOCK=
+      # - ETHEREUM_BLOCK_POLLING_INTERVAL=1000
+    volumes:
+      # Mount configuration files if needed
+      - ./application.yml:/app/application.yml:ro
+      - ./application-dev.yml:/app/application-dev.yml:ro
+      # Mount logs directory (optional)
+      - ./logs:/app/logs
+    # Uncomment if the application exposes web endpoints
+    # ports:
+    #   - "8080:8080"
+    # Add health check
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep '[j]ava' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

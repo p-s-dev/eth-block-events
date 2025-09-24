@@ -1,0 +1,33 @@
+# Runtime Dockerfile for eth-block-events
+# This Dockerfile is used to run the pre-built application
+
+FROM eclipse-temurin:17-jre-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Create a non-root user for security
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -u 1001 -S appuser -G appgroup
+
+# Copy the built JAR file (should be provided externally or from build stage)
+COPY eth-block-events-1.0.0-SNAPSHOT.jar app.jar
+
+# Change ownership to the non-root user
+RUN chown -R appuser:appgroup /app
+
+# Switch to non-root user
+USER appuser
+
+# Expose port if the application has web endpoints (optional)
+# EXPOSE 8080
+
+# Health check (optional - can be customized based on application endpoints)
+# HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+#   CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
+
+# Run the application
+ENTRYPOINT ["java", "-jar", "app.jar"]
+
+# Default arguments (can be overridden)
+CMD []

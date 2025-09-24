@@ -1,0 +1,21 @@
+# Build Dockerfile for eth-block-events
+# This Dockerfile is used to build the application from source code
+# Note: Due to network restrictions in some environments, you may need to build locally first
+
+FROM eclipse-temurin:17-jdk AS build
+
+# Install Maven
+RUN apt-get update && apt-get install -y maven && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy all source files
+COPY pom.xml ./
+COPY src ./src
+
+# Build the application
+# If you encounter network/certificate issues, build locally first with: mvn clean package -DskipTests
+RUN mvn clean package -DskipTests -B
+
+# The built JAR will be in /app/target/eth-block-events-1.0.0-SNAPSHOT.jar

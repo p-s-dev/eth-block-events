@@ -78,6 +78,85 @@ mvn package
 mvn spring-boot:run
 ```
 
+### Docker Usage
+
+#### Option 1: Using Multi-stage Dockerfile (Recommended)
+
+Build and run in one step:
+
+```bash
+# Build the Docker image
+docker build -t eth-block-events .
+
+# Run the container
+docker run --rm eth-block-events
+
+# Run with custom profile
+docker run --rm -e SPRING_PROFILES_ACTIVE=dev eth-block-events
+
+# Run with environment variables
+docker run --rm \
+  -e SPRING_PROFILES_ACTIVE=dev \
+  -e ETHEREUM_NODE_URL=https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID \
+  eth-block-events
+```
+
+#### Option 2: Using Separate Build and Runtime Dockerfiles
+
+Build the application:
+
+```bash
+# Build using the build Dockerfile
+docker build -f Dockerfile.build -t eth-block-events:build .
+
+# Extract the built JAR
+docker create --name temp-container eth-block-events:build
+docker cp temp-container:/app/target/eth-block-events-1.0.0-SNAPSHOT.jar .
+docker rm temp-container
+
+# Build the runtime image
+docker build -f Dockerfile.run -t eth-block-events:run .
+
+# Run the application
+docker run --rm eth-block-events:run
+```
+
+#### Option 3: Using Docker Compose
+
+```bash
+# Run with Docker Compose
+docker-compose up
+
+# Run in background
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop the application
+docker-compose down
+```
+
+#### Docker Environment Variables
+
+You can configure the application using environment variables:
+
+- `SPRING_PROFILES_ACTIVE` - Set the active Spring profile (dev, prod, test)
+- `ETHEREUM_NODE_URL` - Override the Ethereum node URL
+- `ETHEREUM_START_BLOCK` - Set the starting block number
+- `ETHEREUM_BLOCK_POLLING_INTERVAL` - Set the polling interval in milliseconds
+
+Example:
+
+```bash
+docker run --rm \
+  -e SPRING_PROFILES_ACTIVE=dev \
+  -e ETHEREUM_NODE_URL=https://sepolia.infura.io/v3/YOUR_INFURA_PROJECT_ID \
+  -e ETHEREUM_START_BLOCK=18000000 \
+  -e ETHEREUM_BLOCK_POLLING_INTERVAL=2000 \
+  eth-block-events
+```
+
 ## Event Handling
 
 ### Listening to Events
