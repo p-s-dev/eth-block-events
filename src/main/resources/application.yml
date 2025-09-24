@@ -13,12 +13,33 @@ ethereum:
   
   # Contract configurations
   contracts:
-    # Example ERC20 token contract (USDC)
+    # USDC Token Contract (updated with correct address)
     - name: "USDC"
       address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
       events:
         - name: "Transfer"
           signature: "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+          topics: []
+          enabled: true
+        - name: "Approval"
+          signature: "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925"
+          topics: []
+          enabled: false
+    
+    # Uniswap V4 Pool Manager Contract (example address - will need to be updated when V4 is deployed)
+    - name: "UniswapV4PoolManager"
+      address: "0x0000000000000000000000000000000000000000"  # Placeholder - V4 not yet deployed
+      events:
+        - name: "Initialize"
+          signature: "0x98636036cb66a9c19a37435efc1e90142190214e8abeb821bdda3f2990dd4c95"
+          topics: []
+          enabled: false
+        - name: "Swap"
+          signature: "0x0d3648bd0f6ba80134a33ba9275ac585d9d315f0ad8355cddefde31afa28d0e9"
+          topics: []
+          enabled: false
+        - name: "ModifyLiquidity"
+          signature: "0x3932abb5e2165f7c78ddef6502e29c06225afc2b9a4e51ae1d80f2ed7f6ac1a0"
           topics: []
           enabled: false
     

@@ -12,8 +12,53 @@ A Spring Boot Java application that uses RxJava events to listen to an Infura no
 - **Configurable Event Filtering**: Listen to specific contract events based on Solidity event signatures
 - **Block Event Listening**: Monitor new blocks in real-time via WebSocket streaming
 - **ERC20 Support**: Built-in support for ERC20 Transfer events with automatic decoding
+- **Uniswap V4 Support**: Built-in support for Uniswap V4 events (Initialize, Swap, ModifyLiquidity)
+- **Java Contract Wrappers**: Auto-generated Java stubs from Solidity contracts/ABIs for type-safe interaction
 - **Extensible Architecture**: Easy to add new event types and handlers
 - **Local Config Support**: Private configuration files (gitignored) for secure API key management
+
+## Contract Integration
+
+### Solidity Contracts and ABIs
+
+The project includes Solidity contract interfaces and ABIs in organized folders:
+
+```
+src/main/resources/contracts/
+├── solidity/
+│   ├── usdc/
+│   │   └── IERC20.sol
+│   └── uniswap-v4/
+│       └── IUniswapV4Events.sol
+└── abi/
+    ├── IERC20.json
+    └── IUniswapV4Events.json
+```
+
+### Java Contract Wrappers
+
+The project uses the Web3j Maven plugin to automatically generate Java contract wrappers during the build process. These type-safe wrappers are generated from both Solidity files and ABI JSON files.
+
+Generated wrapper classes include:
+- `dev.ps.ethblockevents.contracts.IERC20` - For ERC20 token interactions (USDC)
+- `dev.ps.ethblockevents.contracts.IUniswapV4Events` - For Uniswap V4 event monitoring
+
+### Build Process
+
+The build automatically generates Java stubs from contracts:
+
+```bash
+# Generate contract wrappers and compile
+mvn compile
+
+# Clean build with fresh contract generation
+mvn clean compile
+```
+
+The Web3j plugin runs during the `generate-sources` phase and creates type-safe Java classes for:
+- Event filtering and listening
+- Contract method calls
+- Event data decoding
 
 ## Configuration
 
@@ -37,11 +82,31 @@ ethereum:
   
   # Contract configurations
   contracts:
-    # Example ERC20 token contract (USDC)
+    # USDC Token Contract
     - name: "USDC"
-      address: "0xA0b86a33E6441c8c6c0D4B7D5E7b4F5B7E7E7E7E"
+      address: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
       events:
         - name: "Transfer"
+          signature: "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+          topics: []
+          enabled: true
+        - name: "Approval"
+          signature: "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925"
+          topics: []
+          enabled: false
+    
+    # Uniswap V4 Pool Manager Contract (will be updated when V4 is deployed)
+    - name: "UniswapV4PoolManager"
+      address: "0x0000000000000000000000000000000000000000"  # Placeholder
+      events:
+        - name: "Initialize"
+          signature: "0x98636036cb66a9c19a37435efc1e90142190214e8abeb821bdda3f2990dd4c95"
+          topics: []
+          enabled: false
+        - name: "Swap"
+          signature: "0x0d3648bd0f6ba80134a33ba9275ac585d9d315f0ad8355cddefde31afa28d0e9"
+          topics: []
+          enabled: false
           signature: "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
           topics: []
           enabled: true
