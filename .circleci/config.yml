@@ -1,0 +1,74 @@
+# CircleCI 2.1 configuration for Spring Boot Java application
+# Builds and tests the eth-block-events Spring Boot application
+version: 2.1
+
+# Job definitions
+jobs:
+  build-and-test:
+    # Use official OpenJDK 17 Docker image for Java 17 compatibility
+    docker:
+      - image: cimg/openjdk:17.0
+    
+    # Set working directory
+    working_directory: ~/eth-block-events
+    
+    # Job steps
+    steps:
+      # Checkout the repository code
+      - checkout
+      
+      # Restore Maven dependency cache to speed up builds
+      # Cache key is based on pom.xml to invalidate when dependencies change
+      - restore_cache:
+          keys:
+            - maven-deps-v1-{{ checksum "pom.xml" }}
+            - maven-deps-v1-
+      
+      # Install dependencies and compile the application (skip tests for now)
+      # The Web3j plugin will generate contract wrappers during this phase
+      - run:
+          name: "Install dependencies and compile"
+          command: mvn clean install -DskipTests
+      
+      # Save Maven dependency cache for future builds
+      # Cache the entire .m2/repository directory
+      - save_cache:
+          paths:
+            - ~/.m2/repository
+          key: maven-deps-v1-{{ checksum "pom.xml" }}
+      
+      # Run all Spring Boot JUnit tests
+      # Tests will fail the build if any test fails
+      - run:
+          name: "Run tests"
+          command: mvn test
+      
+      # Store test results in JUnit XML format for CircleCI dashboard
+      # CircleCI will parse these results and show test summary
+      - store_test_results:
+          path: target/surefire-reports
+      
+      # Store test artifacts (reports, logs, etc.) for debugging
+      # These will be available for download from the CircleCI UI
+      - store_artifacts:
+          path: target/surefire-reports
+          destination: test-reports
+      
+      # Store the compiled JAR artifact for deployment or further use
+      - store_artifacts:
+          path: target/*.jar
+          destination: build-artifacts
+
+# Workflow definitions
+# Controls when and how jobs are executed
+workflows:
+  # Main workflow that runs on every push and pull request
+  build-and-test-workflow:
+    jobs:
+      # Run the build-and-test job for all commits
+      - build-and-test:
+          # Filters to control when this job runs
+          filters:
+            branches:
+              # Run on all branches (main, feature branches, etc.)
+              only: /.*/
