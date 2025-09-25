@@ -1,31 +1,74 @@
-# Use the latest 2.1 version of CircleCI pipeline process engine.
-# See: https://circleci.com/docs/reference/configuration-reference
+# CircleCI 2.1 configuration for Spring Boot Java application
+# Builds and tests the eth-block-events Spring Boot application
 version: 2.1
 
-# Define a job to be invoked later in a workflow.
-# See: https://circleci.com/docs/guides/orchestrate/jobs-steps/#jobs-overview & https://circleci.com/docs/reference/configuration-reference/#jobs
+# Job definitions
 jobs:
-  say-hello:
-    # Specify the execution environment. You can specify an image from Docker Hub or use one of our convenience images from CircleCI's Developer Hub.
-    # See: https://circleci.com/docs/guides/execution-managed/executor-intro/ & https://circleci.com/docs/reference/configuration-reference/#executor-job
+  build-and-test:
+    # Use official OpenJDK 17 Docker image for Java 17 compatibility
     docker:
-      # Specify the version you desire here
-      # See: https://circleci.com/developer/images/image/cimg/base
-      - image: cimg/base:current
-
-    # Add steps to the job
-    # See: https://circleci.com/docs/guides/orchestrate/jobs-steps/#steps-overview & https://circleci.com/docs/reference/configuration-reference/#steps
+      - image: cimg/openjdk:17.0
+    
+    # Set working directory
+    working_directory: ~/eth-block-events
+    
+    # Job steps
     steps:
-      # Checkout the code as the first step.
+      # Checkout the repository code
       - checkout
+      
+      # Restore Maven dependency cache to speed up builds
+      # Cache key is based on pom.xml to invalidate when dependencies change
+      - restore_cache:
+          keys:
+            - maven-deps-v1-{{ checksum "pom.xml" }}
+            - maven-deps-v1-
+      
+      # Install dependencies and compile the application (skip tests for now)
+      # The Web3j plugin will generate contract wrappers during this phase
       - run:
-          name: "Say hello"
-          command: "echo Hello, World!"
+          name: "Install dependencies and compile"
+          command: mvn clean install -DskipTests
+      
+      # Save Maven dependency cache for future builds
+      # Cache the entire .m2/repository directory
+      - save_cache:
+          paths:
+            - ~/.m2/repository
+          key: maven-deps-v1-{{ checksum "pom.xml" }}
+      
+      # Run all Spring Boot JUnit tests
+      # Tests will fail the build if any test fails
+      - run:
+          name: "Run tests"
+          command: mvn test
+      
+      # Store test results in JUnit XML format for CircleCI dashboard
+      # CircleCI will parse these results and show test summary
+      - store_test_results:
+          path: target/surefire-reports
+      
+      # Store test artifacts (reports, logs, etc.) for debugging
+      # These will be available for download from the CircleCI UI
+      - store_artifacts:
+          path: target/surefire-reports
+          destination: test-reports
+      
+      # Store the compiled JAR artifact for deployment or further use
+      - store_artifacts:
+          path: target/*.jar
+          destination: build-artifacts
 
-# Orchestrate jobs using workflows
-# See: https://circleci.com/docs/guides/orchestrate/workflows/ & https://circleci.com/docs/reference/configuration-reference/#workflows
+# Workflow definitions
+# Controls when and how jobs are executed
 workflows:
-  say-hello-workflow: # This is the name of the workflow, feel free to change it to better match your workflow.
-    # Inside the workflow, you define the jobs you want to run.
+  # Main workflow that runs on every push and pull request
+  build-and-test-workflow:
     jobs:
-      - say-hello
+      # Run the build-and-test job for all commits
+      - build-and-test:
+          # Filters to control when this job runs
+          filters:
+            branches:
+              # Run on all branches (main, feature branches, etc.)
+              only: /.*/
