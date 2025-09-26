@@ -2,9 +2,96 @@
 
 Learn to use co-pilot by rebuilding an old project from the ground up with mostly just co-pilot instructions
 
-A Spring Boot Java application that uses RxJava events to listen to an Infura node with Web3j. When blockchain events happen, it publishes them to a Google Guava EventBus for easy consumption by other components.
+A comprehensive Ethereum blockchain data processing system that provides both **Java Spring Boot** and **Python ETL** implementations for listening to blockchain events, processing them, and analyzing the data.
 
-## Features
+## 🚀 Quick Start - Python ETL (New!)
+
+For the simplified Python ETL approach:
+
+```bash
+# 1. Clone the repository
+git clone <repository-url>
+cd eth-block-events
+
+# 2. Run the setup script
+python setup.py
+
+# 3. Configure your Infura credentials
+cp application-local-sample.yml application-local.yml
+# Edit application-local.yml with your Infura project ID
+
+# 4. Run the complete ETL pipeline
+python main_etl.py
+
+# Or run individual phases:
+python extract_data.py --recent 10 --output extracted.json
+python transform_data.py extracted.json --output transformed.json  
+python load_data.py transformed.json --output console
+```
+
+## 🏗️ Architecture
+
+This project now offers two implementations:
+
+### 1. Python ETL Pipeline (Simplified Approach)
+- **Extract**: Pull data from Ethereum blockchain via Infura
+- **Transform**: Process and analyze events into structured formats
+- **Load**: Output to console, files, webhooks, or databases
+- **Real-time**: Live event streaming and block monitoring
+
+### 2. Java Spring Boot Application (Original)
+- RxJava event streams for real-time blockchain monitoring
+- Web3j integration with Ethereum nodes
+- Google Guava EventBus for event distribution
+- Type-safe contract wrappers generated from Solidity ABIs
+
+## 📦 Python ETL Components
+
+### Entry Points
+- `main_etl.py` - Complete pipeline runner
+- `extract_data.py` - Data extraction phase
+- `transform_data.py` - Data transformation phase  
+- `load_data.py` - Data loading phase
+- `setup.py` - Environment setup and validation
+
+### Core Services
+- `EthereumClient` - Web3 blockchain connectivity
+- `EventListenerService` - Real-time event monitoring
+- `EventBus` - Event distribution system
+- `EventHandlerService` - Event processing logic
+- `DataTransformer` - Event analysis and aggregation
+- `DataLoader` - Multi-destination data output
+
+### Event Models
+- `EthereumEvent` - Base blockchain event
+- `ERC20TransferEvent` - Token transfers
+- `UniswapSwapEvent` - DEX trading events
+- `UniswapInitializeEvent` - New pool creation
+- `UniswapModifyLiquidityEvent` - Liquidity changes
+- `BlockEvent` - New block notifications
+
+## 🛠️ Installation & Setup
+
+### Python ETL Setup
+
+1. **Prerequisites**
+   ```bash
+   python -c "import sys; print(sys.version)"  # Ensure Python 3.8+
+   ```
+
+2. **Automated Setup**
+   ```bash
+   python setup.py
+   ```
+
+3. **Manual Setup**
+   ```bash
+   pip install -r requirements.txt
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+### Java Application Setup
 
 - **Spring Boot Integration**: Easy configuration and dependency injection
 - **Web3j Integration**: Connect to Ethereum nodes (Infura, local nodes, etc.)
