@@ -3,7 +3,7 @@ Event models for Ethereum blockchain events
 Python equivalent of Java model classes
 """
 from datetime import datetime
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, ClassVar
 from pydantic import BaseModel, Field
 from decimal import Decimal
 
@@ -49,7 +49,7 @@ class UniswapSwapEvent(EthereumEvent):
     tick: int  # int24 in Solidity
     
     # Topic signature for Uniswap V4 Swap event
-    TOPIC_0 = "0x0d3648bd0f6ba80134a33ba9275ac585d9d315f0ad8355cddefde31afa28d0e9"
+    TOPIC_0: ClassVar[str] = "0x0d3648bd0f6ba80134a33ba9275ac585d9d315f0ad8355cddefde31afa28d0e9"
     
     def __init__(self, **data):
         if 'event_name' not in data:
@@ -67,7 +67,7 @@ class UniswapInitializeEvent(EthereumEvent):
     hooks: str
     
     # Topic signature for Uniswap V4 Initialize event
-    TOPIC_0 = "0x98636036cb66a9c19a37435efc1e90142190214e8abeb821bdda3f2990dd4c95"
+    TOPIC_0: ClassVar[str] = "0x98636036cb66a9c19a37435efc1e90142190214e8abeb821bdda3f2990dd4c95"
     
     def __init__(self, **data):
         if 'event_name' not in data:
@@ -84,7 +84,7 @@ class UniswapModifyLiquidityEvent(EthereumEvent):
     liquidity_delta: int  # int256 in Solidity
     
     # Topic signature for Uniswap V4 ModifyLiquidity event
-    TOPIC_0 = "0x3932abb5e2165f7c78ddef6502e29c06225afc2b9a4e51ae1d80f2ed7f6ac1a0"
+    TOPIC_0: ClassVar[str] = "0x3932abb5e2165f7c78ddef6502e29c06225afc2b9a4e51ae1d80f2ed7f6ac1a0"
     
     def __init__(self, **data):
         if 'event_name' not in data:
@@ -102,10 +102,11 @@ class BlockEvent(BaseModel):
     gas_used: int
     gas_limit: int
     
-    class Config:
-        json_encoders = {
+    model_config = {
+        "json_encoders": {
             datetime: lambda v: v.isoformat()
         }
+    }
 
 
 # Event signature constants (equivalent to EventSignatureUtil.CommonSignatures)

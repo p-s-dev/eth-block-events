@@ -38,8 +38,9 @@ class AppConfig(BaseModel):
     ethereum: EthereumConfig
     logging_level: str = "INFO"
     
-    class Config:
-        allow_population_by_field_name = True
+    model_config = {
+        "populate_by_name": True
+    }
 
 
 def load_config(config_file: str = "application.yml") -> AppConfig:

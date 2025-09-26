@@ -10,12 +10,14 @@ import json
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime
-import aiohttp
 
 # Add the project root to Python path
 sys.path.append(str(Path(__file__).parent))
 
 from config import get_config
+
+# Only import aiohttp when needed
+aiohttp = None
 
 # Configure logging
 logging.basicConfig(
@@ -98,6 +100,16 @@ class DataLoader:
         self.load_statistics['start_time'] = datetime.now()
         
         try:
+            # Import aiohttp only when needed
+            global aiohttp
+            if aiohttp is None:
+                try:
+                    import aiohttp
+                except ImportError:
+                    logger.error("aiohttp is required for webhook loading. Install with: pip install aiohttp")
+                    self.load_statistics['errors'] += 1
+                    return
+            
             # Split data into chunks for large datasets
             chunks = self._chunk_data_for_api(transformed_data)
             
